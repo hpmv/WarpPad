@@ -1,0 +1,251 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+   <link rel="stylesheet" type="text/css" href="css/style.css">
+
+  </head>
+  <body>
+    
+
+
+    <div id="container">
+      <div id="panel">
+      <div class="button" onclick="showCommunity()"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+
+      </div>
+      <div id="markerboard"></div>
+
+    </div>
+    <div id="community" style="position:absolute; width:800px; height:600px; top:0; left:0;display:none; background:black"></div>
+    <script src="js/jquery.js"></script>
+    <script src="js/kinetic-v4.7.4.min.js"></script>
+	<script src="js/pusher.js" type="text/javascript"></script>
+    <script src="js/clipper.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/brushes.js"></script>
+    <script src="js/portals.js"></script>
+    <script src="js/pads.js"></script>
+    <script src="js/three.min.js"></script>
+    <script src="js/community.js"></script>
+
+    <script>
+        
+        var manager = new PadManager();
+        var homePad = manager.newPad();
+        for (var i=0;i<20;i++) manager.newPad();
+        var environment = new PadEnvironment(manager, homePad, 800, 600);
+        environment.eye = new Vec2(400, 300);
+        manager.addPortal(homePad, homePad, new Segment(new Vec2(300, 200), new Vec2(300, 400)), new Segment(new Vec2(500, 200), new Vec2(500, 400)));
+
+        var layer = new Kinetic.Layer();
+        var savedLayer = new Kinetic.Layer();
+        var contentLayer = new Kinetic.Layer();
+        var frustumLayer = new Kinetic.Layer();
+        function writeMessage(message) {
+            text.setText(message);
+            //savedLayer.draw();
+        }
+        var stage = new Kinetic.Stage({
+            container: 'markerboard',
+            width: 800,
+            height: 600
+        });
+        
+        var text = new Kinetic.Text({
+            x: 10,
+            y: 10,
+            fontFamily: 'Calibri',
+            fontSize: 24,
+            text: '',
+            fill: 'black'
+        });
+        
+        var canvas = new Kinetic.Rect({
+            x: 0,
+            y: 0,
+            width: stage.getWidth(),
+            height: stage.getHeight(),
+            fill: 'white',
+            stroke: 'white',
+            strokeWidth: 0,
+        });
+        
+        
+        
+        
+        var rectangle = new Kinetic.Rect({
+            x: 0,
+            y: 0,
+            width: 20,
+            height: 20,
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 4,
+        });
+        var down = false;
+   
+        var brush = new SmartPressureBrush();
+        var strokes = [];
+        var curShape = undefined;
+        var debugMew = undefined;
+        
+        var mouseMode = 0; 
+        var beginStroke = function (data) {
+            writeMessage('Mousedown mew');
+            brush.begin(data.layerX + 10, data.layerY);
+            curShape = new Kinetic.Line({
+                points: [1, 0],
+                stroke: 'red',
+                strokeWidth: 2,
+                lineJoin: 'round',
+                /*
+                 * line segments with a length of 33px
+                 * with a gap of 10px
+                 */
+        
+            });
+        
+        };
+        
+        
+        savedLayer.on('mousedown', function(e) {
+            if (e.ctrlKey) {
+                mouseMode = 2;
+            } else {
+                mouseMode = 1;
+                beginStroke(e);
+            }
+        });
+      
+        function flatToStructured(flat) {
+            var result = [];
+            for (var i=0;i<flat.length/2;i++) {
+                result.push(new Vec2(flat[i*2], flat[i*2+1]));
+            }
+            return result;
+        }
+        
+        
+        var endStroke = function () {
+            writeMessage('Mousedup mew');
+            if (curShape != undefined) {
+                curShape.remove();
+        
+            }
+            var convolved = brush.end();
+        
+            if (convolved.length > 4) {
+                var points = flatToStructured(convolved);
+                var fill = '#f92672';
+                environment.addPolygon(points, {fill: fill});
+                environment.renderContents(contentLayer.getContext(), []);
+            }
+            layer.draw();
+        
+        };
+        
+        function continueStroke(e) {
+             
+                console.log("mew");
+                brush.addPoint(e.layerX + 10, e.layerY );
+                
+                if (curShape !== undefined) {
+                    curShape.remove();
+                }
+        
+                var convolved = brush.getCurrentPoly();
+                if (convolved.length > 4) {
+        
+                    curShape = new Kinetic.Polygon({
+                        points: convolved,
+        
+                        fill: '#ae81ff',
+                        /*
+                         * line segments with a length of 33px
+                         * with a gap of 10px
+                         */
+        
+                    });
+        
+        
+        
+        
+                    layer.add(curShape);
+                    layer.draw();
+                }
+        }
+        
+        function moveEye(e) {
+            environment.eye = new Vec2(e.layerX, e.layerY);
+            environment.updatePortaling();
+            environment.renderFrustumsAndPortals(frustumLayer.getContext());
+            environment.renderContents(contentLayer.getContext(), []);
+        }
+        
+        savedLayer.on('mousemove', function (e) {
+            if (mouseMode == 1) {
+                continueStroke(e);
+            } else if (mouseMode == 2) {
+                moveEye(e);
+            }
+        });
+        
+        function updatePortals() {
+            environment.updatePortaling();
+            environment.renderFrustumsAndPortals(frustumLayer.getContext());
+        }
+        
+        window.onmouseup = function(e) {
+            if (mouseMode == 1) {
+                endStroke(e);
+            }
+            mouseMode = 0;
+        };
+        
+        
+        savedLayer.add(text);
+        savedLayer.add(canvas);
+        
+        stage.add(savedLayer);
+        stage.add(contentLayer);
+        stage.add(frustumLayer);
+        stage.add(layer);
+        updatePortals();
+        
+        //savedLayer.draw();
+        
+        function showCommunity() {
+            $("#community").css('display', '');
+            var pads = [];
+            var index = 0;
+            for(var i=0;i<manager.pads.length;i++) {
+                if (manager.pads[i] == environment.homePad) index = i;
+            }
+            for (var i=index;i<index + manager.pads.length;i++) {
+                pads.push(manager.pads[i % manager.pads.length]);
+            }
+            renderCommunityView($('#community'), 800, 600, manager, pads, function(id) {
+                switchToPad(id);
+            });
+        }
+        
+        function switchToPad(id) {
+            environment.homePad = id;
+            environment.updatePortaling();
+            environment.renderFrustumsAndPortals(frustumLayer.getContext());
+            environment.renderContents(contentLayer.getContext(), []);
+            $('#community').empty();
+            $('#community').css('display', 'none');
+        }
+        
+    </script>
+
+
+
+  </body>
+</html>

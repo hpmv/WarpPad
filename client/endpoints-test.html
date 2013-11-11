@@ -1,0 +1,141 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+    <script src="js/clipper.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/portals.js"></script>
+    <script src="js/jquery.min.js"></script>
+</head>
+<body>
+    <canvas width="800" height="600" id="pad"></canvas>
+    <script>
+        var segments = [
+            //new Segment(new Vec2(100, 100), new Vec2(700, 100))
+        ];
+        var endpoints = [];
+        var indices = [];
+        var intervals = [];
+        var homeClip = null;
+        var eye = new Vec2(400, 300);
+        var begin = null;
+
+        $("#pad").mousedown(function (data) {
+            if (data.button == 0) {
+                begin = new Vec2(data.clientX, data.clientY);
+            } else if (data.button == 2) {
+                eye = new Vec2(data.clientX, data.clientY);
+            }
+        });
+
+        $("#pad").mouseup(function (data) {
+            if (data.button == 0) {
+                segments.push(new Segment(begin, new Vec2(data.clientX, data.clientY)));
+                begin = null;
+                updateEndpoints();
+                updateIntervalSegmentIndices();
+                updateIntervals();
+                console.log("LOG");
+                console.log(endpoints);
+                console.log(indices);
+                updateUI();
+            }
+        });
+
+        function updateEndpoints() {
+            endpoints = getAllEndpoints(segments, eye);
+        }
+
+        function updateIntervalSegmentIndices() {
+            indices = getAllIntervalSegmentIndices(endpoints, segments, eye);
+
+        }
+
+        function updateIntervals() {
+            intervals = computeIntervalInfo(segments, eye);
+            var polys = [];
+            for (var i = 0; i < intervals.length; i++) {
+                if (intervals[i].index != -1) {
+                    polys.push(getBigIntervalTargetPolygon(intervals[i], eye));
+                }
+            }
+            var homeRect = [{ x: 0, y: 0 }, { x: 800, y: 0 },
+                { x: 800, y: 600 }, { x: 0, y: 600 }];
+            homeClip = subtractPolygon([homeRect], polys);
+            console.log(JSON.stringify(polys));
+            console.log(homeClip);
+        }
+
+        
+
+        function updateUI() {
+            var ctx = document.getElementById('pad').getContext('2d');
+            ctx.clearRect(0, 0, 800, 600);
+
+
+            ctx.fillStyle = "#ffff77";
+            for (var i = 0; i < homeClip.length; i++) {
+                ctx.beginPath();
+                for (var j = 0; j < homeClip[i].length; j++) {
+                    var x = homeClip[i][j].x;
+                    var y = homeClip[i][j].y;
+                    if (!j) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.fillStyle = "#cccccc";
+            ctx.strokeStyle = "#ff0000";
+            //for (var i = 0; i < endpoints.length; i++) {
+            //    var angle = endpoints[i];
+            //    var other = eye.add(new Vec2(800 * Math.cos(angle), 800 * Math.sin(angle)));
+            //    ctx.beginPath();
+            //    ctx.moveTo(eye.x, eye.y);
+            //    ctx.lineTo(other.x, other.y);
+            //    ctx.stroke();
+            //}
+            //ctx.strokeStyle = "#00ff00";
+            //for (var i = 0; i < intervals.length; i++) {
+            //    var interval = intervals[i];
+            //    if (interval.index == -1) continue;
+            //    if (interval.index == -1) {
+            //        var p = 2000;
+            //        var q = 2000;
+            //    } else {
+            //        var p = interval.t1;
+            //        var q = interval.t2;
+            //    }
+            //    var pp = new Vec2(eye.x + Math.cos(interval.from) * p, eye.y + Math.sin(interval.from) * p);
+            //    var qp = new Vec2(eye.x + Math.cos(interval.to) * q, eye.y + Math.sin(interval.to) * q);
+            //    ctx.beginPath();
+            //    ctx.moveTo(eye.x, eye.y);
+            //    ctx.lineTo(pp.x, pp.y);
+            //    ctx.lineTo(qp.x, qp.y);
+            //    ctx.closePath();
+            //    ctx.fill();
+            //    ctx.stroke();
+                
+            //}
+
+            ctx.strokeStyle = "#000000";
+            for (var i = 0; i < segments.length; i++) {
+                ctx.beginPath();
+                ctx.moveTo(segments[i].a.x, segments[i].a.y);
+                ctx.lineTo(segments[i].b.x, segments[i].b.y);
+                ctx.stroke();
+            }
+
+        }
+
+        console.log(Mat2h.homography(new Segment(new Vec2(1, 1), new Vec2(2, 2)), new Segment(new Vec2(0, 1), new Vec2(-1, 2))));
+    </script>
+</body>
+</html>

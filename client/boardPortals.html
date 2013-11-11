@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+   <link rel="stylesheet" type="text/css" href="css/style.css">
+
+  </head>
+  <body>
+    
+
+
+    <div id="container">
+      <div id="panel">
+      <div class="button"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+      <div class="button"></div>
+
+      </div>
+      <div id="markerboard"></div>
+
+    </div>
+    <script src="js/kinetic-v4.7.4.min.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/brushes.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        
+        var portalsLayer = new Kinetic.Layer();
+        var selecting = true;
+        var stage = new Kinetic.Stage({
+            container: 'markerboard',
+            width: 800,
+            height: 600
+        });
+        
+        
+        var canvas = new Kinetic.Rect({
+            x: 0,
+            y: 0,
+            width: stage.getWidth(),
+            height: stage.getHeight(),
+            fill: 'white',
+            stroke: 'white',
+            strokeWidth: 0,
+        });
+        
+        
+        
+        
+        var rectangle = new Kinetic.Rect({
+            x: 0,
+            y: 0,
+            width: 20,
+            height: 20,
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 4,
+        });
+        var portals = [];
+        var curPortal = undefined;
+        function signalContextChange(){
+            
+        }
+        
+        portalsLayer.on('mousedown', function(e){
+            
+            if(selecting){
+                    curPortal = new PortalElement();
+                    curPortal.addPoint(e.layerX, e.layerY);
+                }
+        
+            
+            portalsLayer.add(curPortal.circles[0]);
+            portalsLayer.batchDraw();
+            
+            
+        });
+        
+        
+        portalsLayer.on('mousemove', function(e){
+            
+            if(curPortal !== undefined){
+                
+                if(selecting){
+                          
+                    curPortal.circles[1].remove(); 
+                    curPortal.line.remove(); 
+                    curPortal.circles[1] = new Kinetic.Circle({
+                        x: e.layerX,
+                        y: e.layerY,
+                        radius: 10,
+                        fill: 'blue',
+                        stroke: 'black',
+                        strokeWidth: 4
+                    });
+                    
+                    
+                    curPortal.line = new Kinetic.Line({
+                        points: [curPortal.gatePosts[0].x, curPortal.gatePosts[0].y, e.layerX,e.layerY],
+                        strokeWidth: 5,
+                        lineJoin: 'round',
+                        stroke: 'blue',
+                        /*
+                         * line segments with a length of 33px
+                         * with a gap of 10px
+                         */
+                    });
+                    
+                    
+                    portalsLayer.add(curPortal.circles[1]);
+                    portalsLayer.add(curPortal.line);
+                }
+            
+                
+                portalsLayer.batchDraw();
+            }
+            
+        });
+        
+        window.onmouseup = function(e){
+            
+            if(selecting){
+                console.log("mew" );  
+                    selecting = false;
+                    signalContextChange();
+                    curPortal.finishPortal();
+                    curPortal.gatePosts[1].x = e.layerX;
+                    curPortal.gatePosts[1].y = e.layerY;
+                    
+                    selecting = false;
+                }
+        
+            
+            portalsLayer.batchDraw();
+            
+            
+        }
+      
+        portalsLayer.add(canvas);
+        
+        stage.add(portalsLayer);
+        
+        //savedLayer.draw();
+        
+        
+    </script>
+
+
+
+  </body>
+</html>

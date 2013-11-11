@@ -1,0 +1,587 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+   <link rel="stylesheet" type="text/css" href="css/style.css">
+
+  </head>
+  <body oncontextmenu="return false;">
+    
+
+
+    <div id="container">
+      <div id="panel">
+      <div id="logo"></div>
+      <div class="button" id="brush"></div>
+      <div class="button" id="paint"></div>
+      <div class="button" id="portal"></div>
+      <div class="button" id="hide"></div>
+      <div class="button" id="save"></div>
+      <div class="button" id="back" onclick="showCommunity(true)"></div>
+
+      </div>
+      <div id="markerboard"></div>
+
+    </div>
+    <div id="community" style="position:absolute; width:800px; height:600px; top:28px; left:98px;display:none; background:black"></div>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/kinetic-v4.7.4.min.js"></script>
+    <script src="js/clipper.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/brushes.js"></script>
+    <script src="js/portals.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/pads2.js"></script>
+    <script src="js/three.min.js"></script>
+    <script src="js/community.js"></script>
+
+    <script>
+        
+        var padState = UIStates.VIEWING;
+        
+var manager = new PadManager();
+var homePad__ = manager.newPad();
+for (var i=0;i<20;i++) manager.newPad();
+var environment = new PadEnvironment(manager, homePad__, 800, 600);
+//environment.setEye(new Vec2(400, 300));
+//manager.addPortal(homePad, homePad, new Segment(new Vec2(200, 200), new Vec2(200, 410)), new Segment(new Vec2(500, 200), new Vec2(500, 410)));
+//manager.addPortal(homePad, homePad, new Segment(new Vec2(226, 193), new Vec2(225, 322)),
+//new Segment(new Vec2(536, 174), new Vec2(531, 320)));
+
+var layer = new Kinetic.Layer();
+var savedLayer = new Kinetic.Layer();
+var contentLayer = new Kinetic.Layer();
+var frustumLayer = new Kinetic.Layer();
+var showFrustum = true;
+        
+var portalsLayer = new Kinetic.Layer();
+function writeMessage(message) {
+    text.setText(message);
+    //savedLayer.draw();
+}
+var stage = new Kinetic.Stage({
+    container: 'markerboard',
+    width: 800,
+    height: 600
+});
+        
+var text = new Kinetic.Text({
+    x: 10,
+    y: 10,
+    fontFamily: 'Calibri',
+    fontSize: 24,
+    text: '',
+    fill: 'black'
+});
+        
+var canvas = new Kinetic.Rect({
+    x: 0,
+    y: 0,
+    width: stage.getWidth(),
+    height: stage.getHeight(),
+    fill: 'white',
+    stroke: 'white',
+    strokeWidth: 0,
+});
+        
+        
+        
+        
+var rectangle = new Kinetic.Rect({
+    x: 0,
+    y: 0,
+    width: 20,
+    height: 20,
+    fill: 'red',
+    stroke: 'black',
+    strokeWidth: 4,
+});
+   
+var brush = new SmartPressureBrush();
+var strokes = [];
+var curShape = undefined;
+var debugMew = undefined;
+        
+var colors = ['#ae81bc', '#f92672', '#61d9ef', '#a6e22e', '#e6db74', '#fd971f'];
+var modeColors = ['#61d9ef', '#a6e22e'];
+var curColor = 1;
+var brushMode = 1;
+var oriX = 0;
+var oriY = 0;
+        
+//purple:ae81bc
+//pink:f92672
+//blue:61d9ef
+//green:a6e22e
+//yellow: e6db74
+//orange:fd971f
+        
+var brushButton = document.getElementById("brush");
+var paintButton = document.getElementById("paint");
+var portalButton = document.getElementById("portal");
+var hideButton = document.getElementById("hide");
+        
+var updateModeButtons = function() {
+    if (brushMode == 1) {
+        brushButton.style.backgroundColor = modeColors[1];
+        portalButton.style.backgroundColor = modeColors[0];
+    } else if (brushMode == 2) {
+        brushButton.style.backgroundColor = modeColors[0];
+        portalButton.style.backgroundColor = modeColors[1];
+    } else {
+        brushButton.style.backgroundColor = modeColors[0];
+        portalButton.style.backgroundColor = modeColors[0];
+    }
+}
+        
+brushButton.onclick = function(){
+    if (padState == UIStates.VIEWING && brushMode == 1) {
+        brushMode = 0;
+    } else if (padState == UIStates.VIEWING ||
+                padState == UIStates.CREATING_FIRST_SELF_PORTAL ||
+                padState == UIStates.CREATING_FIRST_CROSS_PORTAL ||
+                padState == UIStates.CROSS_PORTAL_CHOOSING_PAD) {
+        padState = UIStates.VIEWING;
+        brushMode = 1;
+    }
+    console.log("click");
+    console.log(brushMode);
+    console.log(padState);
+    updateModeButtons();
+}
+        
+paintButton.onclick = function(){
+    curColor = curColor + 1;
+    if (curColor > 5) {
+        curColor = curColor - 6;
+    }
+    paintButton.style.backgroundColor = colors[curColor];
+};
+        
+portalButton.onclick = function(){
+    if (padState == UIStates.VIEWING) {
+        brushMode = 2;
+        environment.setEye(null);
+        padState = UIStates.CROSS_PORTAL_CHOOSING_PAD;
+        showCommunity();
+    } else if (padState == UIStates.CREATING_FIRST_SELF_PORTAL ||
+                padState == UIStates.CREATING_FIRST_CROSS_PORTAL ||
+                padState == UIStates.CROSS_PORTAL_CHOOSING_PAD) {
+        padState = UIStates.VIEWING;
+        brushMode = 0;
+    }
+    console.log("click");
+    console.log(brushMode);
+    console.log(padState);
+    updateModeButtons();
+    bigUpdate();
+}
+        
+hideButton.onclick = function(){
+    showFrustum = !showFrustum;
+    if(showFrustum === false){
+        
+        console.log("disappear");
+        frustumLayer.clear();
+        hideButton.style.backgroundColor = modeColors[0];
+    }
+    else{
+        console.log("reappear");
+        environment.renderFrustumsAndPortals(frustumLayer.getContext());
+        environment.renderEye(frustumLayer.getContext());
+        hideButton.style.backgroundColor = modeColors[1];
+    }
+    //frustumLayer.draw();
+}
+        
+        
+var mouseMode = 0; 
+var beginStroke = function (data) {
+    writeMessage('Mousedown mew');
+    brush.begin(data.layerX + 10, data.layerY);
+    curShape = new Kinetic.Line({
+        points: [1, 0],
+        stroke: 'red',
+        strokeWidth: 2,
+        lineJoin: 'round',
+        /*
+         * line segments with a length of 33px
+         * with a gap of 10px
+         */
+        
+    });
+        
+};
+        
+        
+var lastDrag;
+function beginDrag(e) {
+    lastDrag = new Vec2(e.layerX, e.layerY);
+}
+        
+function moveCanvas(e) {
+    var curDrag = new Vec2(e.layerX, e.layerY);
+    var offset = curDrag.sub(lastDrag);
+    lastDrag = curDrag;
+    environment.transform.x += offset.x;
+    environment.transform.y += offset.y;
+            
+    bigUpdate();
+}
+        
+        
+savedLayer.on('mousedown', function(e) {
+    if (e.ctrlKey) {
+        if (e.button == 0) {
+            mouseMode = 2;
+            moveEye(e);
+        } else {
+            environment.setEye(null);
+            bigUpdate();
+        }
+    } else if (padState == UIStates.VIEWING && brushMode == 0) {
+        mouseMode = 3;
+        beginDrag(e);
+    } else if (padState == UIStates.VIEWING && brushMode == 1){
+        mouseMode = 1;
+        beginStroke(e);
+    } else if ((padState == UIStates.CREATING_FIRST_SELF_PORTAL || padState == UIStates.CREATING_SECOND_SELF_PORTAL
+              || padState == UIStates.CREATING_FIRST_CROSS_PORTAL || padState == UIStates.CREATING_SECOND_CROSS_PORTAL) && brushMode == 2) {
+        mouseMode = 4;
+        beginPortal(e);
+    }
+    currentPortalSelection= null;
+});
+      
+function flatToStructured(flat) {
+    var result = [];
+    for (var i=0;i<flat.length/2;i++) {
+        result.push(new Vec2(flat[i*2], flat[i*2+1]));
+    }
+    return result;
+}
+        
+        
+var endStroke = function () {
+    writeMessage('Mousedup mew');
+    if (curShape != undefined) {
+        curShape.remove();
+        
+    }
+    var convolved = brush.end();
+        
+    if (convolved.length > 4) {
+        var points = flatToStructured(convolved);
+        var fill = colors[curColor];
+        environment.addPolygon(points, {fill: fill});
+        environment.renderContents(contentLayer.getContext(), []);
+    }
+    layer.draw();
+        
+};
+        
+function continueStroke(e) {
+             
+    console.log("mew");
+    brush.addPoint(e.layerX + 10, e.layerY );
+                
+    if (curShape !== undefined) {
+        curShape.remove();
+    }
+        
+    var convolved = brush.getCurrentPoly();
+    if (convolved.length > 4) {
+        var curStrokeColor = (curColor + 1) % 6;
+        curShape = new Kinetic.Polygon({
+            points: convolved,
+        
+            fill: colors[curStrokeColor],
+            /*
+             * line segments with a length of 33px
+             * with a gap of 10px
+             */
+        
+        });
+        
+        
+        
+        
+        layer.add(curShape);
+        layer.draw();
+    }
+}
+        
+function moveEye(e) {
+    environment.setEye(new Vec2(e.layerX, e.layerY));
+    bigUpdate();
+}
+
+function bigUpdate() {
+    environment.updatePortaling();
+    if(showFrustum){
+        environment.renderFrustumsAndPortals(frustumLayer.getContext());
+    }
+    environment.renderContents(contentLayer.getContext(), []);
+    if(showFrustum){
+        environment.renderEye(frustumLayer.getContext());
+    }
+    rerenderPortals();
+}
+        
+savedLayer.on('mousemove', function (e) {
+    if (mouseMode == 1) {
+        continueStroke(e);
+    } else if (mouseMode == 2) {
+        moveEye(e);
+    } else if (mouseMode == 3) {
+        moveCanvas(e);
+    } else if (mouseMode == 4){
+        movePortal(e);
+    }
+});
+        
+function updatePortals() {
+    environment.updatePortaling();
+    environment.renderFrustumsAndPortals(frustumLayer.getContext());
+}
+        
+window.onmouseup = function(e) {
+            
+    if (mouseMode == 1) {
+        endStroke(e);
+    }
+    else if (mouseMode == 4) {
+                
+        endPortal(e);
+
+                
+    }
+    mouseMode = 0;
+};
+        
+        
+savedLayer.add(text);
+savedLayer.add(canvas);
+        
+stage.add(savedLayer);
+        
+stage.add(contentLayer);
+stage.add(frustumLayer);
+        
+stage.add(portalsLayer);
+stage.add(layer);
+        
+
+updatePortals();
+        
+//savedLayer.draw();
+
+var myPad = -1;
+var otherPad = -1;
+        
+function showCommunity(justSwitch) {
+    console.log("show");
+    
+    var pads = [];
+    var index = 0;
+    for(var i=0;i<manager.pads.length;i++) {
+        if (manager.pads[i] == environment.homePad) index = i;
+    }
+    for (var i=index;i<index + manager.pads.length;i++) {
+        pads.push(manager.pads[i % manager.pads.length]);
+    }
+    $("#community").fadeIn(200);
+    renderCommunityView($('#community'), 800, 600, manager, pads, function(id) {
+        switchToPad(id, justSwitch);
+    });
+}
+        
+function switchToPad(id, justSwitch) {
+    if (justSwitch) {
+        environment.homePad = id;
+        bigUpdate();
+        $('#community').empty();
+        $('#community').fadeOut(1000);
+        return;
+    }
+    myPad = environment.homePad;
+    otherPad = id;
+    environment.homePad = id;
+    if (id == environment.homePad) {
+        padState = UIStates.CREATING_FIRST_SELF_PORTAL;
+    } else {
+        padState = UIStates.CREATING_FIRST_CROSS_PORTAL;
+    }
+    bigUpdate();
+    $('#community').empty();
+    $('#community').fadeOut(1000);
+}
+
+function backToPad() {
+    environment.homePad = myPad;
+    bigUpdate();
+}
+        
+        
+        
+        
+var firstPortal = null;
+var currentPortal = null;
+function beginPortal(e) {
+    var pos = new Vec2(e.layerX, e.layerY);
+    console.log(JSON.stringify(pos));
+    currentPortal = new Segment(pos, pos);
+    rerenderPortals();
+}
+        
+function movePortal(e) {
+    var pos = new Vec2(e.layerX, e.layerY);
+    currentPortal.b = pos;
+    if (firstPortal != null) {
+        var length = firstPortal.b.sub(firstPortal.a).abs();
+        var offset = currentPortal.b.sub(currentPortal.a);
+        offset = offset.normalize().mul(length);
+        currentPortal.b = currentPortal.a.add(offset);
+    }
+    rerenderPortals();
+}
+        
+function endPortal(e) {
+    console.log("end");
+    console.log(padState);
+    console.log(environment.homePad);
+    if (padState == UIStates.CREATING_FIRST_SELF_PORTAL) {
+        firstPortal = currentPortal;
+        currentPortal = null;
+        padState = UIStates.CREATING_SECOND_SELF_PORTAL;
+        rerenderPortals();
+    } else if (padState == UIStates.CREATING_SECOND_SELF_PORTAL) {
+        var transFirst = environment.transform.inv().mulSeg(firstPortal);
+        var transSecond = environment.transform.inv().mulSeg(currentPortal);
+        console.log(JSON.stringify(firstPortal));
+        console.log(JSON.stringify(currentPortal));
+        console.log(JSON.stringify(transFirst));
+        console.log(JSON.stringify(transSecond));
+        manager.addPortal(environment.homePad, environment.homePad, transFirst, transSecond);
+        padState = UIStates.VIEWING;
+        brushMode = 1;
+        currentPortal = firstPortal = null;
+        updateModeButtons();
+        bigUpdate();
+    } else if (padState == UIStates.CREATING_FIRST_CROSS_PORTAL) {
+        firstPortal = currentPortal;
+        currentPortal = null;
+        padState = UIStates.CREATING_SECOND_CROSS_PORTAL;
+        //should add firstPortal to target pad here
+        backToPad();
+    } else if (padState == UIStates.CREATING_SECOND_CROSS_PORTAL) {
+        var transFirst = environment.transform.inv().mulSeg(firstPortal);
+        var transSecond = environment.transform.inv().mulSeg(currentPortal);
+        console.log(JSON.stringify(firstPortal));
+        console.log(JSON.stringify(currentPortal));
+        console.log(JSON.stringify(transFirst));
+        console.log(JSON.stringify(transSecond));
+        manager.addPortal(otherPad, myPad, transFirst, transSecond);
+        padState = UIStates.VIEWING;
+        brushMode = 1;
+        currentPortal = firstPortal = null;
+        updateModeButtons();
+        bigUpdate();
+    }
+}
+
+var currentPortalSelection = null;
+
+function rerenderPortals() {
+    portalsLayer.removeChildren();
+    
+    if (environment.eye != null) {
+        currentPortalSelection = null;
+        portalsLayer.batchDraw();
+        return;
+    }
+    function getColor(portal) {
+        if (portal == null) return 'blue';
+        if (currentPortalSelection != null && currentPortalSelection.id == portal.id) {
+            return 'red';
+        }
+        return 'blue';
+    }
+
+    function makeLine(seg, portal) {
+        return new Kinetic.Line({
+            points: [seg.a.x, seg.a.y, seg.b.x, seg.b.y],
+            strokeWidth: 5,
+            lineJoin: 'round',
+            stroke: getColor(portal)
+        });
+    }
+
+    function makeCircles(seg, portal) {
+        return [new Kinetic.Circle({
+            x: seg.a.x,
+            y: seg.a.y,
+            radius: 7,
+            fill: getColor(portal),
+            stroke: 'black',
+            strokeWidth: 4
+        }), new Kinetic.Circle({
+            x: seg.b.x,
+            y: seg.b.y,
+            radius: 7,
+            fill: getColor(portal),
+            stroke: 'black',
+            strokeWidth: 4
+        })];
+    }
+    var portals = manager.getPortals(environment.homePad);
+    for (var i=-2;i<portals.length;i++) {
+        
+            if(i >= 0) {
+                var portal = portals[i];
+                var seg = environment.transform.mulSeg(portal.fromSeg);
+            } else if (i==-2 && (padState == UIStates.CREATING_SECOND_SELF_PORTAL || padState == UIStates.CREATING_SECOND_CROSS_PORTAL) && currentPortal != null) {
+                var seg = currentPortal;
+            } else if (i==-1 && padState != UIStates.CREATING_SECOND_CROSS_PORTAL && (currentPortal != null || firstPortal != null)) {
+                var seg = firstPortal == null? currentPortal : firstPortal;
+            } else {
+                continue;
+            }
+            var line = makeLine(seg, i>=0? portal: null);
+            var circles = makeCircles(seg, i>=0? portal: null);
+            portalsLayer.add(circles[0]);
+            portalsLayer.add(circles[1]);
+            portalsLayer.add(line);
+
+            if (i >= 0) {
+                var callback = (function(portal) {
+                    return function () {
+                        currentPortalSelection = portal;
+                        rerenderPortals();
+                    }
+                })(portal);
+                line.on('mouseup', callback);
+                circles[0].on('mouseup', callback);
+                circles[1].on('mouseup', callback);
+            }
+        
+    }
+    portalsLayer.batchDraw();
+}
+        
+$(window).keydown(function(e) {
+    if(e.keyCode == 46) {
+        if (currentPortalSelection != null) {
+            manager.deletePortal(currentPortalSelection.id);
+            currentPortalSelection = null;
+            bigUpdate();
+        }
+    }
+})
+        
+
+        
+</script>
+
+
+
+</body>

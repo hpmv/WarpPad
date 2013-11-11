@@ -1,0 +1,139 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display:inline-block;
+            border: 1px solid gray;
+        }
+    </style>
+    <script src="js/clipper.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/portals.js"></script>
+    <script src="js/jquery.min.js"></script>
+</head>
+<body>
+    <canvas width="400" height="600" id="pad1"></canvas>
+    <canvas width="400" height="600" id="pad2"></canvas>
+    <script>
+        var eye1 = new Vec2(200, 300);
+        var eye2 = new Vec2(200, 300);
+        var pad1Portals = [];
+        var pad2Portals = [];
+        var pad1Polys = [];
+        var pad2Polys = [];
+        var padPortals = [pad1Portals, pad2Portals];
+        var padPolys = [pad1Polys, pad2Polys];
+        var padService = {
+            getPortals: function (pad) {
+                return padPortals[pad];
+            },
+            clipContents: function (pad, clip) {
+                var result = [];
+                for (var i = 0; i < padPolys[pad].length; i++) {
+                    var poly = padPolys[pad][i].poly;
+                    var fill = padPolys[pad][i].fill;
+                    var cut = intersectPolygon(clip, [poly]);
+                    if (cut.length == 0) continue;
+                    result.push({ fill: fill, poly: cut[0] });
+                }
+                return result;
+            }
+        }
+
+        function newPortal(id, fromPad, toPad, fromSeg, toSeg) {
+            padPortals[fromPad].push({
+                id: id, fromPad: fromPad, toPad: toPad, fromSeg: fromSeg, toSeg: toSeg, side: 0
+            });
+            padPortals[toPad].push({
+                id: id, fromPad: toPad, toPad: fromPad, fromSeg: toSeg, toSeg: fromSeg, side: 1
+            });
+        }
+
+        function newPoly(pad, fill, poly) {
+            padPolys[pad].push({ fill: fill, poly: poly });
+        }
+
+        function draw() {
+            var viewPortRect = [[new Vec2(0, 0), new Vec2(400, 0), new Vec2(400, 600), new Vec2(0, 600)]];
+            var result = [];
+            result[0] = renderEverything(padService, 0, eye1, viewPortRect, 2);
+            result[1] = renderEverything(padService, 1, eye2, viewPortRect, 2);
+            var ctx = [];
+            ctx[0] = document.getElementById('pad1').getContext('2d');
+            ctx[1] = document.getElementById('pad2').getContext('2d');
+            ctx[0].clearRect(0, 0, 400, 600);
+            ctx[0].strokeStyle = "#ff0000";
+            ctx[1].clearRect(0, 0, 400, 600);
+            ctx[1].strokeStyle = "#ff0000";
+            for (var rr = 0; rr < 2; rr++) {
+                for (var i = 0; i < result[rr].length; i++) {
+                    var clip = result[rr][i].clip;
+                    var pad = result[rr][i].pad;
+                    var t = result[rr][i].transform;
+                    ctx[rr].save();
+                    ctx[rr].transform(t.a11, t.a21, t.a12, t.a22, t.x, t.y);
+                    for (var j = 0; j < padPolys[pad].length; j++) {
+                        ctx[rr].fillStyle = padPolys[pad][j].fill;
+                        var poly = padPolys[pad][j].poly;
+                        var clipped = intersectPolygon(clip, [poly]);
+                        if (clipped.length != 0) {
+                            var newPoly = clipped[0];
+                            ctx[rr].beginPath();
+                            for (var k = 0; k < newPoly.length; k++) {
+                                var x = newPoly[k].x;
+                                var y = newPoly[k].y;
+                                if (!k) ctx[rr].moveTo(x, y);
+                                else ctx[rr].lineTo(x, y);
+                            }
+                            ctx[rr].closePath();
+                            ctx[rr].fill();
+                        }
+                    }
+                    ctx[rr].restore();
+                }
+            }
+
+            for (var rr = 0; rr < 2; rr++) {
+                for (var i = 0; i < pad1Portals.length; i++) {
+                    var portal = pad1Portals[i];
+                    ctx[rr].beginPath();
+                    ctx[rr].moveTo(portal.fromSeg.a.x, portal.fromSeg.a.y);
+                    ctx[rr].lineTo(portal.fromSeg.b.x, portal.fromSeg.b.y);
+                    ctx[rr].stroke();
+                }
+            }
+
+        }
+
+        /*newPortal(1, 0, 1, new Segment(new Vec2(150, 200), new Vec2(150, 400)), new Segment(new Vec2(100, 200), new Vec2(300, 200)));
+        newPoly(0, [new Vec2(100, 250), new Vec2(200, 250), new Vec2(200, 350), new Vec2(100, 350)]);
+        newPoly(1, [new Vec2(200, 400), new Vec2(350, 250), new Vec2(350, 200)]);*/
+        newPortal(1, 0, 0, new Segment(new Vec2(150, 200), new Vec2(150, 400)), new Segment(new Vec2(250, 200), new Vec2(250, 400)));
+        newPoly(0, '#ff0000', [new Vec2(170, 250), new Vec2(230, 270), new Vec2(200, 350)]);
+        newPoly(0, '#00ff00', [new Vec2(50, 250), new Vec2(100, 250), new Vec2(100, 350), new Vec2(50, 350)]);
+        newPoly(0, '#0000ff', [new Vec2(300, 250), new Vec2(350, 250), new Vec2(350, 350), new Vec2(300, 350)]);
+        draw();
+
+        var down1 = false;
+        $('#pad1').mousedown(function (data) {
+            down1 = true;
+        });
+        $("#pad1").mouseup(function (data) {
+            down1 = false;
+        });
+        $("#pad1").mousemove(function (data) {
+            if (down1) {
+                eye1 = new Vec2(data.clientX, data.clientY);
+                draw();
+            }
+        });
+        
+    </script>
+</body>
+</html>

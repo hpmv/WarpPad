@@ -1,0 +1,102 @@
+#panel{
+	float: left;
+	width: 80px;
+	background-color: #49483e;
+	padding-top:10px;
+	padding-bottom:10px;
+	border:0px solid;
+	border-radius:3px;
+	
+}
+#container{
+	background-color: transparent;
+	padding-top: 20px;
+}
+
+#logo{
+    
+    width:50px;
+    height:50px;
+    background-image:url("../img/logo.png");
+    background-position: center;
+    background-repeat: no-repeat;
+	padding: 10.5px;
+	margin: 5px;
+	margin-top: -5px;
+	border-bottom: solid 1px #666;
+    
+}
+.button {
+	display: block;
+	float: left;
+	width: 45px;
+	height: 45px;
+	margin-left: 17.5px;
+	margin-right: 17.5px;
+	margin-top: 6px;
+	margin-bottom: 4px;
+	background-color: #66d9ef;
+	border:0px solid;
+	border-radius:3px;
+	
+	-webkit-transition: all 0.2s ease-in-out;
+    -moz-transition: all 0.2s ease-in-out;
+    -o-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out; 
+    background-position:center; 
+
+}
+
+.button:hover {
+    width: 50px;
+    margin-left: 15.25px;
+    margin-top: 3.5px;
+    margin-bottom: 1.5px;
+	height: 50px;
+
+}
+
+
+
+#brush {
+    background-color: #a6e22e;
+    background-image: url('../img/brush2.png');
+}
+
+#paint {
+    background-color: #f92672;
+    background-image: url('../img/paint2.png');
+}
+
+#portal {
+    background-image: url('../img/portal2.png');
+}
+
+#hide {
+    background-image: url('../img/hide2.png');
+}
+
+#save {
+    background-image: url('../img/save2.png');
+}
+
+#back {
+    background-image: url('../img/back2.png');
+}
+
+#markerboard {
+	width: 800px;
+	height: 600px;
+
+}
+
+
+#markerboard{
+	margin-left: 90px;
+}
+
+body{
+	background-color: #272822;
+
+}
+

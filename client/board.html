@@ -1,0 +1,233 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+   <link rel="stylesheet" type="text/css" href="css/style.css">
+
+  </head>
+  <body>
+    
+
+
+    <div id="container">
+      <div id="panel">
+      <div class="button" id="brush"></div>
+      <div class="button" id="paint"></div>
+      <div class="button" id="portal"></div>
+      <div class="button" id="hide"></div>
+      <div class="button" id="save"></div>
+      <div class="button" id="back"></div>
+
+      </div>
+      <div id="markerboard"></div>
+
+    </div>
+    <script src="js/kinetic-v4.7.4.min.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/brushes.js"></script>
+
+    <script>
+        
+        var layer = new Kinetic.Layer();
+        var savedLayer = new Kinetic.Layer();
+        function writeMessage(message) {
+            text.setText(message);
+            //savedLayer.draw();
+        }
+        var stage = new Kinetic.Stage({
+            container: 'markerboard',
+            width: 800,
+            height: 600
+        });
+        
+        var text = new Kinetic.Text({
+            x: 10,
+            y: 10,
+            fontFamily: 'Calibri',
+            fontSize: 24,
+            text: '',
+            fill: 'black'
+        });
+        
+        var canvas = new Kinetic.Rect({
+            x: 0,
+            y: 0,
+            width: stage.getWidth(),
+            height: stage.getHeight(),
+            fill: 'white',
+            stroke: 'white',
+            strokeWidth: 0,
+        });
+        
+        
+        
+        
+        var rectangle = new Kinetic.Rect({
+            x: 0,
+            y: 0,
+            width: 20,
+            height: 20,
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 4,
+        });
+        var down = false;
+     
+        var brush = new SmartPressureBrush();
+        var strokes = [];
+        var curShape = undefined;
+        var debugMew = undefined;
+        var colors = ['#ae81bc', '#f92672', '#61d9ef', '#a6e22e', '#e6db74', '#fd971f'];
+        var buttonColors = ['#61d9ef', '#a6e22e'];
+        var curColor = 1;
+        var brushMode = 1;
+        var oriX = 0;
+        var oriY = 0;
+        
+        //purple:ae81bc
+        //pink:f92672
+        //blue:61d9ef
+        //green:a6e22e
+        //yellow: e6db74
+        //orange:fd971f
+
+
+        var brushButton = document.getElementById("brush");
+        var paintButton = document.getElementById("paint");
+        
+        brushButton.onclick = function(){
+            brushMode = 1 - brushMode;
+            brushButton.style.backgroundColor = buttonColors[brushMode];
+        }
+        
+        paintButton.onclick = function(){
+            curColor = curColor + 1;
+            if (curColor > 5) {
+                curColor = curColor - 6;
+            }
+            paintButton.style.backgroundColor = colors[curColor];
+        };
+        
+        var beginStroke = function (data) {
+            if (brushMode == 1) {
+                writeMessage('Mousedown mew');
+                down = true;
+                brush.begin(data.layerX + 10, data.layerY);
+                curShape = new Kinetic.Line({
+                    points: [1, 0],
+                    stroke: 'red',
+                    strokeWidth: 2,
+                    lineJoin: 'round',
+                    /*
+                     * line segments with a length of 33px
+                     * with a gap of 10px
+                     */
+            
+                });
+            } else {
+                //mew
+            }
+        };
+        
+        
+        savedLayer.on('mousedown', beginStroke);
+      
+        
+        var endStroke = function () {
+            if (brushMode == 1) {
+            writeMessage('Mousedup mew');
+                down = false;
+                if (curShape != undefined) {
+                    curShape.remove();
+            
+                }
+                var convolved = brush.end();
+            
+                if (convolved.length > 4) {
+                    var shape = new Kinetic.Polygon({
+                        points: convolved,
+                        lineJoin: 'round',
+                        fill: colors[curColor]
+                        //fill: '#f92672',
+                                                            /*
+                         * line segments with a length of 33px
+                         * with a gap of 10px
+                         */
+            
+                    });
+            
+                    savedLayer.add(shape);
+                    savedLayer.draw();
+                    layer.draw();
+            
+                }
+            } else {
+                //mew
+            }
+            
+        };
+        
+     
+        
+        savedLayer.on('mousemove', function (e) {
+            if (brushMode == 1) {
+            
+               if (down === true) {
+            
+            
+                    brush.addPoint(e.layerX + 10, e.layerY);
+                    
+                    if (curShape !== undefined) {
+                        curShape.remove();
+                    }
+            
+                    var convolved = brush.getCurrentPoly();
+                    if (convolved.length > 4) {
+                        var curStrokeColor = curColor - 1;
+                        if (curStrokeColor < 0) {
+                            curStrokeColor += 6;
+                        }
+                        curShape = new Kinetic.Polygon({
+                            points: convolved,
+                            fill: colors[curStrokeColor],
+                            //fill: '#ae81ff',
+                            /*
+                             * line segments with a length of 33px
+                             * with a gap of 10px
+                             */
+            
+                        });
+            
+            
+            
+            
+                        layer.add(curShape);
+                        layer.draw();
+                    }
+                }
+            } else {
+                // mew
+            }
+            
+        });
+        
+       
+        
+        
+        window.onmouseup = endStroke;
+        
+        
+        savedLayer.add(text);
+        savedLayer.add(canvas);
+        
+        stage.add(savedLayer);
+        stage.add(layer);
+        
+        //savedLayer.draw();
+        
+        
+    </script>
+
+
+
+  </body>
+</html>
