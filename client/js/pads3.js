@@ -8,7 +8,7 @@ function PadManager(username) {
     this.portals = {};
     this.polys = {};
     this.version = -1;
-    this.nextPadId = 1; // TODO: use server.
+    this.nextPortalId = 1; // TODO: use server.
     this.suppress = false;
     this.socket = null;
 }
